@@ -11,7 +11,6 @@ def main():
     db = Database()
     screen_manager = ScreenManager(screen, settings, db)
     
-    
     running = True
     while running:
         screen.fill((0, 0, 0))
@@ -29,5 +28,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

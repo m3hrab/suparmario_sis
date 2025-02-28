@@ -6,7 +6,6 @@ from screens.signup_screen import SignupScreen
 from screens.game_screen import game_screen
 
 class ScreenManager:
-    
     def __init__(self, screen, settings, db):
         self.screen = screen
         self.settings = settings
@@ -18,7 +17,7 @@ class ScreenManager:
             "second_menu": second_menu_screen,
             "login": LoginScreen(screen, settings, self.db),
             "signup": SignupScreen(screen, settings, self.db),
-            "game": game_screen
+            "game": lambda screen: game_screen(screen, self.settings, self.db, level_number=1)
         }
         
         self.buttons = {
@@ -56,8 +55,3 @@ class ScreenManager:
             self.screens[self.current_screen].draw()
         else:
             self.screens[self.current_screen](self.screen)
-        
-        print(pygame.mouse.get_pos())
-        
-        # for x, y, w, h, _ in self.buttons.get(self.current_screen, []):
-        #     pygame.draw.rect(self.screen, (255, 0, 0), (x, y, w, h), 2)
