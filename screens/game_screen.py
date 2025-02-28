@@ -13,12 +13,14 @@ def game_screen(screen, settings, db, level_number=1):
     pygame.mixer.init()
     clock = pygame.time.Clock()
     
+    # Load level
     level_file = os.path.join("levels", f"level{level_number}.json")
     if not os.path.exists(level_file):
         print(f"Level {level_number} not found, defaulting to level1.json")
         level_file = os.path.join("levels", "level1.json")
     level = Level(level_file)
     
+    # Load sprites
     backgrounds = [pygame.image.load(os.path.join(bg["file"])).convert() for bg in settings.background_layers]
     for i in range(len(backgrounds)):
         backgrounds[i] = pygame.transform.scale(backgrounds[i], (settings.screen_width, 1080))
@@ -26,8 +28,10 @@ def game_screen(screen, settings, db, level_number=1):
     decor_sprites = [pygame.image.load(file).convert_alpha() for file in settings.decor_images]
     collectible_sprites = [pygame.image.load(file).convert_alpha() for file in settings.collectible_images]
     
+    # Load audio
     sounds = {key: pygame.mixer.Sound(file) for key, file in settings.audio_files.items()}
     
+    # Initialize game objects
     game_instance = Game()
     player = Player(settings.screen_width // 2, 400, game_instance)
     enemies = []
@@ -42,6 +46,7 @@ def game_screen(screen, settings, db, level_number=1):
     score = 0
     player_health = settings.starting_health
     running = True
+    game_over = False
     font = pygame.font.Font(None, 36)
     
     collectible_frame = 0
@@ -54,8 +59,9 @@ def game_screen(screen, settings, db, level_number=1):
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
-                    return "menu"
-                if event.key == pygame.K_r:
+                    running = False  # Quit to menu
+                if event.key == pygame.K_r and game_over:
+                    # Restart game from game over screen
                     player = Player(settings.screen_width // 2, 400, game_instance)
                     enemies = []
                     for enemy_rect, enemy_type in level.enemies:
@@ -66,42 +72,47 @@ def game_screen(screen, settings, db, level_number=1):
                     camera.update(player.rect)
                     score = 0
                     player_health = settings.starting_health
+                    game_over = False
+                if event.key == pygame.K_m and game_over:
+                    running = False  # Return to menu from game over screen
         
-        player.update([t[0] for t in level.physics_tiles])
-        if player.velocity.y < 0:
-            sounds["jump"].play()
+        if not game_over:
+            # Update game logic
+            player.update([t[0] for t in level.physics_tiles])
+            if player.velocity.y < 0:
+                sounds["jump"].play()
+            
+            for enemy in enemies[:]:
+                enemy.update([t[0] for t in level.physics_tiles], player)
+                if isinstance(enemy, EnemyShooter) and enemy.shoot_timer == settings.shoot_cooldown - 1:
+                    sounds["shoot"].play()
+                if player.rect.colliderect(enemy.rect):
+                    if player.dashing:
+                        sounds["enemy_death"].play()
+                        player.spawn_kill_particles(enemy.rect.centerx, enemy.rect.centery)
+                        enemies.remove(enemy)
+                        score += settings.score_per_enemy
+                    elif isinstance(enemy, EnemyWalker):
+                        enemy.attack(player)
+                        sounds["hurt"].play()
+            
+            for collectible in level.collectibles[:]:
+                if player.rect.colliderect(collectible[0]):
+                    sounds["coin"].play()
+                    level.collectibles.remove(collectible)
+                    score += settings.score_per_collectible
+            
+            camera.update(player.rect)
+            
+            collectible_timer += collectible_animation_speed
+            if collectible_timer >= 1:
+                collectible_frame = (collectible_frame + 1) % len(collectible_sprites)
+                collectible_timer = 0
+            
+            if player_health <= 0:
+                game_over = True
         
-        for enemy in enemies[:]:
-            enemy.update([t[0] for t in level.physics_tiles], player)
-            if isinstance(enemy, EnemyShooter) and enemy.shoot_timer == settings.shoot_cooldown - 1:
-                sounds["shoot"].play()
-            if player.rect.colliderect(enemy.rect):
-                if player.dashing:
-                    sounds["enemy_death"].play()
-                    player.spawn_kill_particles(enemy.rect.centerx, enemy.rect.centery)
-                    enemies.remove(enemy)
-                    score += settings.score_per_enemy
-                elif isinstance(enemy, EnemyWalker):
-                    enemy.attack(player)
-                    sounds["hurt"].play()
-        
-        for collectible in level.collectibles[:]:
-            if player.rect.colliderect(collectible[0]):
-                sounds["coin"].play()
-                level.collectibles.remove(collectible)
-                score += settings.score_per_collectible
-        
-        camera.update(player.rect)
-        
-        collectible_timer += collectible_animation_speed
-        if collectible_timer >= 1:
-            collectible_frame = (collectible_frame + 1) % len(collectible_sprites)
-            collectible_timer = 0
-        
-        if player_health <= 0:
-            print("Game Over! Press R to restart or Q to return to menu.")
-            running = False
-        
+        # Draw
         screen.fill(settings.background_color)
         
         for i, bg in enumerate(backgrounds):
@@ -149,9 +160,13 @@ def game_screen(screen, settings, db, level_number=1):
         screen.blit(score_text, (10, 10))
         screen.blit(health_text, (10, 40))
         
-        if not running:
-            reset_text = font.render("Press R to Restart or Q to Menu", True, settings.game_over_color)
-            screen.blit(reset_text, (settings.screen_width // 2 - 150, settings.screen_height // 2))
+        if game_over:
+            game_over_text = font.render("Game Over!", True, settings.game_over_color)
+            restart_text = font.render("Press R to Restart", True, settings.text_color)
+            menu_text = font.render("Press M to Return to Menu", True, settings.text_color)
+            screen.blit(game_over_text, (settings.screen_width // 2 - 80, settings.screen_height // 2 - 40))
+            screen.blit(restart_text, (settings.screen_width // 2 - 100, settings.screen_height // 2))
+            screen.blit(menu_text, (settings.screen_width // 2 - 120, settings.screen_height // 2 + 40))
         
         pygame.display.flip()
         clock.tick(settings.fps)
