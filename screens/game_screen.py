@@ -8,6 +8,7 @@ from game.player import Player
 from game.projectile import Projectile
 from game.particle import Particle
 from config.settings import Settings
+from screens.game_over import game_over_screen
 
 def game_screen(screen, settings, db, level_number=1):
     pygame.mixer.init()
@@ -44,9 +45,7 @@ def game_screen(screen, settings, db, level_number=1):
     camera.update(player.rect)
     
     score = 0
-    player_health = settings.starting_health
     running = True
-    game_over = False
     font = pygame.font.Font(None, 36)
     
     collectible_frame = 0
@@ -59,25 +58,10 @@ def game_screen(screen, settings, db, level_number=1):
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
-                    running = False  # Quit to menu
-                if event.key == pygame.K_r and game_over:
-                    # Restart game from game over screen
-                    player = Player(settings.screen_width // 2, 400, game_instance)
-                    enemies = []
-                    for enemy_rect, enemy_type in level.enemies:
-                        if enemy_type == "walker":
-                            enemies.append(EnemyWalker(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
-                        elif enemy_type == "shooter":
-                            enemies.append(EnemyShooter(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
-                    camera.update(player.rect)
-                    score = 0
-                    player_health = settings.starting_health
-                    game_over = False
-                if event.key == pygame.K_m and game_over:
-                    running = False  # Return to menu from game over screen
+                    running = False
         
-        if not game_over:
-            # Update game logic
+        if game_instance.player_health > 0 and level.collectibles:
+            # Game running
             player.update([t[0] for t in level.physics_tiles])
             if player.velocity.y < 0:
                 sounds["jump"].play()
@@ -108,9 +92,6 @@ def game_screen(screen, settings, db, level_number=1):
             if collectible_timer >= 1:
                 collectible_frame = (collectible_frame + 1) % len(collectible_sprites)
                 collectible_timer = 0
-            
-            if player_health <= 0:
-                game_over = True
         
         # Draw
         screen.fill(settings.background_color)
@@ -156,17 +137,26 @@ def game_screen(screen, settings, db, level_number=1):
                 enemy.draw_projectiles(screen, camera)
         
         score_text = font.render(f"Score: {score}", True, settings.text_color)
-        health_text = font.render(f"Health: {player_health}", True, settings.text_color)
+        health_text = font.render(f"Health: {game_instance.player_health}", True, settings.text_color)
         screen.blit(score_text, (10, 10))
         screen.blit(health_text, (10, 40))
         
-        if game_over:
-            game_over_text = font.render("Game Over!", True, settings.game_over_color)
-            restart_text = font.render("Press R to Restart", True, settings.text_color)
-            menu_text = font.render("Press M to Return to Menu", True, settings.text_color)
-            screen.blit(game_over_text, (settings.screen_width // 2 - 80, settings.screen_height // 2 - 40))
-            screen.blit(restart_text, (settings.screen_width // 2 - 100, settings.screen_height // 2))
-            screen.blit(menu_text, (settings.screen_width // 2 - 120, settings.screen_height // 2 + 40))
+        # Check win/lose conditions
+        next_level = level_number + 1
+        next_level_file = os.path.join("levels", f"level{next_level}.json")
+        
+        if game_instance.player_health <= 0 or not level.collectibles:
+            running = False
+            if not level.collectibles and os.path.exists(next_level_file):
+                # Aadvance to next level
+                return f"game:{next_level}"
+            else:
+                # Game over 
+                result = game_over_screen(screen, settings, score)
+                if result == "game":
+                    return f"game:{level_number}"  # Restart current level
+                elif result == "menu" or result is None:
+                    return "menu"
         
         pygame.display.flip()
         clock.tick(settings.fps)
@@ -179,4 +169,4 @@ class Game:
         
     def take_damage(self, amount):
         self.player_health -= amount
-        print(f"Player took {amount} damage! Health: {self.player_health}")
+        # print(f"{amount} damage,health: {self.player_health}")

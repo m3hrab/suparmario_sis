@@ -1,3 +1,4 @@
+# screens/screen_manager.py
 import pygame
 from screens.menu_screen import menu_screen
 from screens.second_menu_screen import second_menu_screen
@@ -34,8 +35,14 @@ class ScreenManager:
         }
     
     def change_screen(self, new_screen):
-        if new_screen in self.screens:
-            self.current_screen = new_screen
+        if new_screen:
+            if isinstance(new_screen, str) and ":" in new_screen:
+                screen_name, level = new_screen.split(":")
+                if screen_name == "game":
+                    self.screens["game"] = lambda screen: game_screen(screen, self.settings, self.db, level_number=int(level))
+                    self.current_screen = "game"
+            elif new_screen in self.screens:
+                self.current_screen = new_screen
     
     def handle_input(self, event):
         if self.current_screen in ["login", "signup"]:
@@ -54,4 +61,6 @@ class ScreenManager:
         if self.current_screen in ["login", "signup"]:
             self.screens[self.current_screen].draw()
         else:
-            self.screens[self.current_screen](self.screen)
+            result = self.screens[self.current_screen](self.screen)
+            if result:
+                self.change_screen(result)
