@@ -49,7 +49,7 @@ class ScreenManager:
                     self.current_screen = "game"
             elif new_screen in self.screens:
                 self.current_screen = new_screen
-            print(f"Changed screen to {self.current_screen}, logged_in_user: {self.logged_in_user}")
+            # print(f"Changed screen to {self.current_screen}, logged_in_user: {self.logged_in_user}")
     
     def handle_input(self, event):
         if self.current_screen in ["login", "signup"]:
@@ -68,7 +68,7 @@ class ScreenManager:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for idx, (x, y, w, h, next_screen) in enumerate(self.buttons.get(self.current_screen, [])):
                     if x < event.pos[0] < x + w and y < event.pos[1] < y + h:
-                        print(f"Button clicked: {next_screen}")
+                        # print(f"Button clicked: {next_screen}")
                         if self.current_screen == "second_menu" and idx == 3:
                             self.logged_in_user = None
                             print("Playing without login")

@@ -53,6 +53,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     score = 0
     running = True
     font = pygame.font.Font(None, 36)
+    small_font = pygame.font.Font(None, 24)  # For status text
     
     collectible_frame = 0
     collectible_animation_speed = 0.2
@@ -80,11 +81,16 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                     running = False
                 elif event.key == pygame.K_u:  # Rewind with 'U' key
                     print(f"Attempting rewind, stack: {game_instance.position_stack}, cooldown: {game_instance.rewind_cooldown}")
-                    if game_instance.position_stack and game_instance.rewind_cooldown <= 0:
-                        last_pos = game_instance.position_stack.pop()
-                        player.rect.x, player.rect.y = last_pos
+                    if game_instance.rewind_cooldown <= 0 and game_instance.position_stack:
+                        target_x = player.rect.x - 320  # 10 tiles * 32px
+                        last_y = player.rect.y  # Default to current y
+                        while game_instance.position_stack and game_instance.position_stack[-1][0] > target_x:
+                            last_pos = game_instance.position_stack.pop()
+                            last_y = last_pos[1]  # Use last y-position if beyond 10 tiles
+                        player.rect.x = max(target_x, game_instance.position_stack[0][0] if game_instance.position_stack else target_x)
+                        player.rect.y = last_y
                         game_instance.rewind_cooldown = 300  # 5 seconds at 60 FPS
-                        print(f"Rewound to position: {last_pos}, stack size: {len(game_instance.position_stack)}")
+                        print(f"Rewound 10 tiles to: ({player.rect.x}, {player.rect.y}), stack size: {len(game_instance.position_stack)}")
                     elif not game_instance.position_stack:
                         print("No positions in stack to rewind to")
                     elif game_instance.rewind_cooldown > 0:
@@ -227,6 +233,17 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             else:
                 screen.blit(heart_empty, (settings.screen_width - 40 - i * 40, 10))
         
+        # Rewind and Dash status
+        rewind_status = "Rewind: Ready" if game_instance.rewind_cooldown <= 0 else f"Rewind: {game_instance.rewind_cooldown // 60}s"
+        rewind_text = small_font.render(rewind_status, True, settings.text_color)
+        rewind_rect = rewind_text.get_rect(center=(settings.screen_width // 2 - 80, 50))
+        screen.blit(rewind_text, rewind_rect)
+        
+        dash_status = "Dash: Ready" if player.dash_cooldown_timer <= 0 else f"Dash: {player.dash_cooldown_timer // 60}s"
+        dash_text = small_font.render(dash_status, True, settings.text_color)
+        dash_rect = dash_text.get_rect(center=(settings.screen_width // 2 + 80, 50))
+        screen.blit(dash_text, dash_rect)
+        
         # Check win/lose conditions
         next_level = level_number + 1
         next_level_file = os.path.join("levels", f"level{next_level}.json")
@@ -279,8 +296,8 @@ class Game:
         self.flash_max_alpha = 150
         self.flash_duration = 10
         self.lives_lost = 0
-        self.position_stack = []  # Stack for position history (max 5)
-        self.rewind_cooldown = 0  # Cooldown in frames (5s = 300 frames at 60 FPS)
+        self.position_stack = []  # Stack for position history 
+        self.rewind_cooldown = 0  
         
     def take_damage(self, player):
         self.player_lives -= 1

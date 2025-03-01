@@ -21,7 +21,7 @@ class Settings:
         self.particle_size = (5, 5)
         self.particle_color = (255, 255, 255)
         self.background_color = (135, 206, 235)
-        self.text_color = (0, 0, 0)
+        self.text_color = (255, 255, 255)
         self.game_over_color = (255, 0, 0)
 
         # Physics settings
