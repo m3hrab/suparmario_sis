@@ -31,7 +31,8 @@ class Settings:
         self.enemy_speed = 1
 
         # Game mechanics
-        self.starting_lives = 3  
+        self.starting_lives = 3
+        self.damage_amount = 10
         self.attack_cooldown = 60
         self.particle_lifetime = 20
         self.score_per_enemy = 10
@@ -56,11 +57,14 @@ class Settings:
         self.heart_full_image = os.path.join("Assets", "hearts", "hartfill.png")
         self.heart_empty_image = os.path.join("Assets", "hearts", "hartempty.png")
 
-        # Audio files
+        # Audio files (updated with new sounds)
         self.audio_files = {
+            "ambience": os.path.join("Assets", "Audio", "Sound", "ambience.wav"),
             "coin": os.path.join("Assets", "Audio", "Sound", "coin.wav"),
+            "dash": os.path.join("Assets", "Audio", "Sound", "dash.wav"),
             "enemy_death": os.path.join("Assets", "Audio", "Sound", "enemy_death.wav"),
             "hurt": os.path.join("Assets", "Audio", "Sound", "hurt.wav"),
             "jump": os.path.join("Assets", "Audio", "Sound", "jump.wav"),
+            "music": os.path.join("Assets", "Audio", "Sound", "music.wav"),
             "shoot": os.path.join("Assets", "Audio", "Sound", "shoot.wav")
         }
