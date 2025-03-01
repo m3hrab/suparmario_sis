@@ -1,6 +1,6 @@
+# screens/login_screen.py
 import pygame
 from screens.base_screen import draw_screen
-
 
 class LoginScreen:
     def __init__(self, screen, settings, database):
@@ -36,20 +36,18 @@ class LoginScreen:
             elif self.login_button_rect.collidepoint(event.pos):
                 self.success, self.message = self.database.login_user(self.username, self.password)
                 if self.success:
+                    logged_username = self.username  # Capture before clearing
+                    self.username = ""
+                    self.password = ""
                     self.draw()
                     pygame.display.flip()
                     pygame.time.delay(2000)
-                    
-                    # clear the username and password
-                    
-                    self.username = ""
-                    self.password = ""
-                    return "game"
+                    return "game", logged_username  # Return username with result
                 else:
                     self.draw()
                     pygame.display.flip()
                     pygame.time.delay(2000)
-                    
+            
             elif self.sign_up_button_rect.collidepoint(event.pos):
                 return "signup"
 
@@ -61,18 +59,18 @@ class LoginScreen:
                     self.password = self.password[:-1]
             elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
                 self.success, self.message = self.database.login_user(self.username, self.password)
-                self.username = ""
-                self.password = ""
                 if self.success:
+                    logged_username = self.username  # Capture before clearing
+                    self.username = ""
+                    self.password = ""
                     self.draw()
                     pygame.display.flip()
                     pygame.time.delay(2000)
-                    return "game"
+                    return "game", logged_username  # Return username with result
                 else:
                     self.draw()
                     pygame.display.flip()
                     pygame.time.delay(2000)
-    
             else:
                 if self.username_active:
                     self.username += event.unicode
@@ -94,8 +92,3 @@ class LoginScreen:
             message_rect = message_surface.get_rect(center=(self.screen.get_width() // 2, self.password_rect.y + 70))
             self.screen.blit(message_surface, message_rect)
             self.message = ""
-
-        # pygame.draw.rect(self.screen, (255, 255, 255), self.username_rect, 2)
-        # pygame.draw.rect(self.screen, (255, 255, 255), self.password_rect, 2)
-        # pygame.draw.rect(self.screen, (0, 255, 0), self.login_button_rect, 2)
-        # pygame.draw.rect(self.screen, (0, 0, 255), self.sign_up_button_rect, 2)

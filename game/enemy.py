@@ -90,7 +90,7 @@ class EnemyWalker:
     def attack(self, player):
         self.attack_timer = self.attack_cooldown
         if self.game:
-            self.game.take_damage(settings.damage_amount)
+            self.game.take_damage(player)
 
     def draw(self, screen, camera):
         frame = self.animations[self.current_animation][self.frame_index]
@@ -241,7 +241,7 @@ class EnemyShooter:
                 self.projectiles.remove(proj)
             elif proj.rect.colliderect(player.rect):
                 if self.game:
-                    self.game.take_damage(self.game.DAMAGE_AMOUNT, player)  # Correct reference
+                    self.game.take_damage(player)  # Remove DAMAGE_AMOUNT argument
                     self.projectiles.remove(proj)
         
         remaining_particles = []
@@ -257,7 +257,7 @@ class EnemyShooter:
         if self.animation_timer >= 1:
             self.frame_index = (self.frame_index + 1) % len(self.animations[self.current_animation])
             self.animation_timer = 0
-
+            
     def draw_projectiles(self, screen, camera):
         for proj in self.projectiles:
             proj.draw(screen, camera)

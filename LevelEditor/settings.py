@@ -51,6 +51,6 @@ BACKGROUND_WIDTH = 576
 BACKGROUND_HEIGHT = 324
 
 # Asset lists
-TILE_IMAGES = [os.path.join("Assets", "tiles", f"{i}.png") for i in range(1, 18)]
+TILE_IMAGES = [os.path.join("Assets", "tiles", f"{i}.png") for i in range(1, 20)]
 DECOR_IMAGES = [os.path.join("Assets", "decor", f"{i}.png") for i in range(1, 31)]
 COLLECTIBLE_IMAGES = [os.path.join("Assets", "Collectables", f"{i}.png") for i in range(1, 13)]

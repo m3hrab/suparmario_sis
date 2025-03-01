@@ -1,3 +1,4 @@
+# config/settings.py
 import pygame
 import os
 
@@ -25,18 +26,17 @@ class Settings:
 
         # Physics settings
         self.gravity = 0.8
-        self.player_speed = 5
-        self.player_jump_power = -10
+        self.player_speed = 3
+        self.player_jump_power = -11
         self.enemy_speed = 1
 
         # Game mechanics
-        self.starting_health = 100
-        self.damage_amount = 10
+        self.starting_lives = 3  
         self.attack_cooldown = 60
         self.particle_lifetime = 20
         self.score_per_enemy = 10
         self.score_per_collectible = 5
-        self.shoot_cooldown = 90  # For EnemyShooter (1.5s at 60 FPS)
+        self.shoot_cooldown = 90
 
         # Background settings
         self.background_layers = [
@@ -47,12 +47,14 @@ class Settings:
             {"file": os.path.join("Assets", "Background", "5.png"), "speed": 0.9}
         ]
         self.background_width = 576
-        self.background_height = 324  # Scaled to 1080px in game
+        self.background_height = 324
 
         # Asset lists
-        self.tile_images = [os.path.join("Assets", "tiles", f"{i}.png") for i in range(1, 18)]
+        self.tile_images = [os.path.join("Assets", "tiles", f"{i}.png") for i in range(1, 20)]
         self.decor_images = [os.path.join("Assets", "decor", f"{i}.png") for i in range(1, 31)]
         self.collectible_images = [os.path.join("Assets", "Collectables", f"{i}.png") for i in range(1, 13)]
+        self.heart_full_image = os.path.join("Assets", "hearts", "hartfill.png")
+        self.heart_empty_image = os.path.join("Assets", "hearts", "hartempty.png")
 
         # Audio files
         self.audio_files = {
