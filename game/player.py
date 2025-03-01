@@ -1,10 +1,10 @@
 import pygame
-import random 
 from game.particle import Particle
 from config.settings import Settings
+import random 
+
 
 settings = Settings()
-
 class Player:
     def __init__(self, x, y, game=None):
         self.rect = pygame.Rect(x, y, *settings.player_size)
@@ -126,9 +126,10 @@ class Player:
         self.rect.y -= 2
         return on_ground
 
-    def spawn_kill_particles(self, enemy_x, enemy_y):
-        for _ in range(15):
-            particle = Particle(enemy_x, enemy_y)
+    def spawn_particles(self, x, y, count=15):
+        """Spawn particles at given position with specified count."""
+        for _ in range(count):
+            particle = Particle(x, y)
             particle.velocity.x = random.uniform(-3, 3)
             particle.velocity.y = random.uniform(-3, 0)
             self.particles.append(particle)

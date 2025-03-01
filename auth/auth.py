@@ -22,6 +22,7 @@ class Database:
         return hashlib.sha256(password.encode()).hexdigest()
 
     def signup_user(self, username, password):
+        # inseert the username and hashed password into the database if the username is unique
         try:
             self.cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, self.hash_password(password)))
             self.conn.commit()

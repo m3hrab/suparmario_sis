@@ -1,6 +1,7 @@
 # screens/game_screen.py
 import pygame
 import os
+import random
 from game.camera import Camera
 from game.enemy import EnemyWalker, EnemyShooter
 from game.level import Level
@@ -33,7 +34,7 @@ def game_screen(screen, settings, db, level_number=1):
     sounds = {key: pygame.mixer.Sound(file) for key, file in settings.audio_files.items()}
     
     # Initialize game objects
-    game_instance = Game()
+    game_instance = Game(settings)  # Pass settings to Game
     player = Player(settings.screen_width // 2, 400, game_instance)
     enemies = []
     for enemy_rect, enemy_type in level.enemies:
@@ -52,6 +53,12 @@ def game_screen(screen, settings, db, level_number=1):
     collectible_animation_speed = 0.2
     collectible_timer = 0
     
+    # Screen shake variables (moved to Game instance)
+    shake_offset = pygame.Vector2(0, 0)
+    
+    # Screen flash variables (moved to Game instance)
+    flash_surface = pygame.Surface((settings.screen_width, settings.screen_height), pygame.SRCALPHA)
+    
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -60,11 +67,12 @@ def game_screen(screen, settings, db, level_number=1):
                 if event.key == pygame.K_q:
                     running = False
         
-        if game_instance.player_health > 0 and level.collectibles:
+        if game_instance.player_health > 0:
             # Game running
             player.update([t[0] for t in level.physics_tiles])
             if player.velocity.y < 0:
-                sounds["jump"].play()
+                # sounds["jump"].play()
+                pass
             
             for enemy in enemies[:]:
                 enemy.update([t[0] for t in level.physics_tiles], player)
@@ -73,7 +81,7 @@ def game_screen(screen, settings, db, level_number=1):
                 if player.rect.colliderect(enemy.rect):
                     if player.dashing:
                         sounds["enemy_death"].play()
-                        player.spawn_kill_particles(enemy.rect.centerx, enemy.rect.centery)
+                        player.spawn_particles(enemy.rect.centerx, enemy.rect.centery)
                         enemies.remove(enemy)
                         score += settings.score_per_enemy
                     elif isinstance(enemy, EnemyWalker):
@@ -86,12 +94,39 @@ def game_screen(screen, settings, db, level_number=1):
                     level.collectibles.remove(collectible)
                     score += settings.score_per_collectible
             
+            # Debug fireball positions
+            for enemy in enemies:
+                if isinstance(enemy, EnemyShooter):
+                    for proj in enemy.projectiles:
+                        print(f"Fireball at {proj.rect}, Player at {player.rect}")
+                        if proj.rect.colliderect(player.rect):
+                            pass
+                            # print("Fireball collision detected!")
+            
             camera.update(player.rect)
             
             collectible_timer += collectible_animation_speed
             if collectible_timer >= 1:
                 collectible_frame = (collectible_frame + 1) % len(collectible_sprites)
                 collectible_timer = 0
+        
+        # Screen shake update
+        if game_instance.shake_duration > 0:
+            shake_offset = pygame.Vector2(
+                random.uniform(-game_instance.shake_intensity, game_instance.shake_intensity),
+                random.uniform(-game_instance.shake_intensity, game_instance.shake_intensity)
+            )
+            game_instance.shake_duration -= 1
+            print(f"Shake active: duration={game_instance.shake_duration}, offset={shake_offset}")
+        else:
+            shake_offset = pygame.Vector2(0, 0)
+        
+        # Screen flash update
+        if game_instance.flash_alpha > 0:
+            game_instance.flash_alpha -= game_instance.flash_max_alpha / game_instance.flash_duration
+            game_instance.flash_alpha = max(0, game_instance.flash_alpha)
+            flash_surface.fill((255, 0, 0, int(game_instance.flash_alpha)))
+            print(f"Flash active: alpha={game_instance.flash_alpha}")
         
         # Draw
         screen.fill(settings.background_color)
@@ -100,8 +135,8 @@ def game_screen(screen, settings, db, level_number=1):
             parallax_offset = camera.apply_parallax(i)
             bg_width = bg.get_width()
             bg_height = bg.get_height()
-            start_x = -(parallax_offset.x % bg_width)
-            y_offset = -(parallax_offset.y % bg_height) - (bg_height - settings.screen_height) // 2
+            start_x = -(parallax_offset.x % bg_width) + shake_offset.x
+            y_offset = -(parallax_offset.y % bg_height) - (bg_height - settings.screen_height) // 2 + shake_offset.y
             num_tiles_x = int(settings.screen_width / bg_width) + 2
             num_tiles_y = int(settings.screen_height / bg_height) + 2
             for j in range(num_tiles_x):
@@ -112,23 +147,23 @@ def game_screen(screen, settings, db, level_number=1):
         
         for dec, index in level.decorative_tiles:
             sprite = decor_sprites[index]
-            adjusted_rect = camera.apply(dec)
+            adjusted_rect = camera.apply(dec).move(shake_offset.x, shake_offset.y)
             screen.blit(sprite, adjusted_rect)
         
         for tile, index in level.physics_tiles:
             sprite = tile_sprites[index]
-            adjusted_rect = camera.apply(tile)
+            adjusted_rect = camera.apply(tile).move(shake_offset.x, shake_offset.y)
             screen.blit(sprite, adjusted_rect)
         
         for coll, index in level.collectibles:
             sprite = collectible_sprites[collectible_frame]
-            adjusted_rect = camera.apply(coll)
+            adjusted_rect = camera.apply(coll).move(shake_offset.x, shake_offset.y)
             screen.blit(sprite, adjusted_rect)
         
         player.draw(screen, camera)
         
         for particle in player.particles:
-            adjusted_particle_rect = camera.apply(particle.rect)
+            adjusted_particle_rect = camera.apply(particle.rect).move(shake_offset.x, shake_offset.y)
             pygame.draw.rect(screen, settings.particle_color, adjusted_particle_rect)
         
         for enemy in enemies:
@@ -136,6 +171,11 @@ def game_screen(screen, settings, db, level_number=1):
             if isinstance(enemy, EnemyShooter):
                 enemy.draw_projectiles(screen, camera)
         
+        # Draw screen flash overlay
+        if game_instance.flash_alpha > 0:
+            screen.blit(flash_surface, (0, 0))
+        
+        # HUD
         score_text = font.render(f"Score: {score}", True, settings.text_color)
         health_text = font.render(f"Health: {game_instance.player_health}", True, settings.text_color)
         screen.blit(score_text, (10, 10))
@@ -145,18 +185,16 @@ def game_screen(screen, settings, db, level_number=1):
         next_level = level_number + 1
         next_level_file = os.path.join("levels", f"level{next_level}.json")
         
-        if game_instance.player_health <= 0 or not level.collectibles:
+        if game_instance.player_health <= 0:
             running = False
-            if not level.collectibles and os.path.exists(next_level_file):
-                # Aadvance to next level
-                return f"game:{next_level}"
-            else:
-                # Game over 
-                result = game_over_screen(screen, settings, score)
-                if result == "game":
-                    return f"game:{level_number}"  # Restart current level
-                elif result == "menu" or result is None:
-                    return "menu"
+            result = game_over_screen(screen, settings, score)
+            if result == "game":
+                return f"game:{level_number}"
+            elif result == "menu" or result is None:
+                return "menu"
+        elif not level.collectibles and os.path.exists(next_level_file):
+            running = False
+            return f"game:{next_level}"
         
         pygame.display.flip()
         clock.tick(settings.fps)
@@ -164,9 +202,21 @@ def game_screen(screen, settings, db, level_number=1):
     return "menu"
 
 class Game:
-    def __init__(self):
-        self.player_health = Settings().starting_health
+    def __init__(self, settings):
+        self.player_health = settings.starting_health
+        self.DAMAGE_AMOUNT = settings.damage_amount  # From settings
+        # Effect variables
+        self.shake_duration = 0
+        self.shake_intensity = 5
+        self.flash_alpha = 0
+        self.flash_max_alpha = 150
+        self.flash_duration = 10
         
-    def take_damage(self, amount):
+    def take_damage(self, amount, player):
         self.player_health -= amount
-        # print(f"{amount} damage,health: {self.player_health}")
+        print(f"Player took {amount} damage! Health: {self.player_health}")
+        # Trigger effects on damage
+        self.shake_duration = 10
+        self.flash_alpha = self.flash_max_alpha
+        player.spawn_particles(player.rect.centerx, player.rect.centery, count=10)
+        print("Effects triggered: shake, flash, particles")

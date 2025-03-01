@@ -162,6 +162,7 @@ class EnemyShooter:
             current_x += step
         return True
 
+
     def update(self, tiles, player):
         self.velocity.y += self.gravity
         self.velocity.y = min(self.velocity.y, 15)
@@ -240,7 +241,7 @@ class EnemyShooter:
                 self.projectiles.remove(proj)
             elif proj.rect.colliderect(player.rect):
                 if self.game:
-                    self.game.take_damage(settings.damage_amount)
+                    self.game.take_damage(self.game.DAMAGE_AMOUNT, player)  # Correct reference
                     self.projectiles.remove(proj)
         
         remaining_particles = []
