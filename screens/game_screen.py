@@ -18,6 +18,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     # Load level
     level_file = os.path.join("levels", f"level{level_number}.json")
     if not os.path.exists(level_file):
+        print(f"Level {level_number} not found, defaulting to level1.json")
         level_file = os.path.join("levels", "level1.json")
     level = Level(level_file)
     
@@ -63,16 +64,12 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     # Screen flash variables
     flash_surface = pygame.Surface((settings.screen_width, settings.screen_height), pygame.SRCALPHA)
     
-    # Play background music and ambience (looped)
+    # Play background music and ambience
     pygame.mixer.music.load(settings.audio_files["music"])
-    pygame.mixer.music.play(-1)  # Loop indefinitely
-    sounds["ambience"].play(-1)  # Loop ambience
-    # Volume control
-    pygame.mixer.music.set_volume(0.5)
-    sounds["ambience"].set_volume(0.5)
+    pygame.mixer.music.play(-1)
+    sounds["ambience"].play(-1)
     
-    
-    # print(f"logged_in_user: {logged_in_user}")
+    print(f"Game started, logged_in_user: {logged_in_user}")
     
     while running:
         for event in pygame.event.get():
@@ -81,14 +78,36 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
                     running = False
+                elif event.key == pygame.K_u:  # Rewind with 'U' key
+                    print(f"Attempting rewind, stack: {game_instance.position_stack}, cooldown: {game_instance.rewind_cooldown}")
+                    if game_instance.position_stack and game_instance.rewind_cooldown <= 0:
+                        last_pos = game_instance.position_stack.pop()
+                        player.rect.x, player.rect.y = last_pos
+                        game_instance.rewind_cooldown = 300  # 5 seconds at 60 FPS
+                        print(f"Rewound to position: {last_pos}, stack size: {len(game_instance.position_stack)}")
+                    elif not game_instance.position_stack:
+                        print("No positions in stack to rewind to")
+                    elif game_instance.rewind_cooldown > 0:
+                        print(f"Rewind on cooldown: {game_instance.rewind_cooldown // 60} seconds left")
         
         if game_instance.player_lives > 0:
             # Game running
             player.update([t[0] for t in level.physics_tiles])
             if player.velocity.y < 0:
                 sounds["jump"].play()
-            if player.dashing and player.dash_timer == player.dash_duration - 1:  # Play dash sound on start
+            if player.dashing and player.dash_timer == player.dash_duration - 1:
                 sounds["dash"].play()
+            
+            # Stack: Track player position
+            if len(game_instance.position_stack) < 5:
+                game_instance.position_stack.append((player.rect.x, player.rect.y))
+            else:
+                game_instance.position_stack.pop(0)  # Remove oldest
+                game_instance.position_stack.append((player.rect.x, player.rect.y))
+            
+            # Update rewind cooldown
+            if game_instance.rewind_cooldown > 0:
+                game_instance.rewind_cooldown -= 1
             
             for enemy in enemies[:]:
                 enemy.update([t[0] for t in level.physics_tiles], player)
@@ -97,7 +116,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                 if player.rect.colliderect(enemy.rect):
                     if player.dashing:
                         sounds["enemy_death"].play()
-                        player.spawn_particles(enemy.rect.centerx, enemy.rect.centery)
+                        player.spawn_particles(enemy.rect.centerx, player.rect.centery)
                         enemies.remove(enemy)
                         score += settings.score_per_enemy
                     elif isinstance(enemy, EnemyWalker):
@@ -136,7 +155,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                 random.uniform(-game_instance.shake_intensity, game_instance.shake_intensity)
             )
             game_instance.shake_duration -= 1
-            # print(f"Shake active: duration={game_instance.shake_duration}, offset={shake_offset}")
+            print(f"Shake active: duration={game_instance.shake_duration}, offset={shake_offset}")
         else:
             shake_offset = pygame.Vector2(0, 0)
         
@@ -145,7 +164,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             game_instance.flash_alpha -= game_instance.flash_max_alpha / game_instance.flash_duration
             game_instance.flash_alpha = max(0, game_instance.flash_alpha)
             flash_surface.fill((255, 0, 0, int(game_instance.flash_alpha)))
-            # print(f"Flash active: alpha={game_instance.flash_alpha}")
+            print(f"Flash active: alpha={game_instance.flash_alpha}")
         
         # Draw
         screen.fill(settings.background_color)
@@ -215,8 +234,11 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         if game_instance.player_lives <= 0:
             running = False
             if logged_in_user and logged_in_user.strip():
-                db.update_score(logged_in_user, score)
-                # print(f"{logged_in_user}: {score}")
+                user_id = db.get_user_id(logged_in_user)
+                if user_id:
+                    db.log_game_session(user_id, score, game_instance.lives_lost)
+                    db.update_score(logged_in_user, score)
+                    print(f"Score updated for {logged_in_user}: {score}")
             result = game_over_screen(screen, settings, score, db, logged_in_user)
             if result == "game":
                 return f"game:{level_number}"
@@ -225,8 +247,11 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         elif not level.collectibles and os.path.exists(next_level_file):
             running = False
             if logged_in_user and logged_in_user.strip():
-                db.update_score(logged_in_user, score)
-                # print(f"{logged_in_user}: {score}")
+                user_id = db.get_user_id(logged_in_user)
+                if user_id:
+                    db.log_game_session(user_id, score, game_instance.lives_lost)
+                    db.update_score(logged_in_user, score)
+                    print(f"Score updated for {logged_in_user}: {score}")
             return f"game:{next_level}"
         
         pygame.display.flip()
@@ -237,24 +262,33 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     sounds["ambience"].stop()
     
     if logged_in_user and logged_in_user.strip():
-        db.update_score(logged_in_user, score)
-        # print(f"{logged_in_user}: {score} on quit")
+        user_id = db.get_user_id(logged_in_user)
+        if user_id:
+            db.log_game_session(user_id, score, game_instance.lives_lost)
+            db.update_score(logged_in_user, score)
+            print(f"Score updated for {logged_in_user}: {score} on quit")
     return "menu"
 
 class Game:
     def __init__(self, settings):
         self.player_lives = settings.starting_lives
-        # Effect variables
+        self.DAMAGE_AMOUNT = settings.damage_amount
         self.shake_duration = 0
         self.shake_intensity = 5
         self.flash_alpha = 0
         self.flash_max_alpha = 150
         self.flash_duration = 10
+        self.lives_lost = 0
+        self.position_stack = []  # Stack for position history (max 5)
+        self.rewind_cooldown = 0  # Cooldown in frames (5s = 300 frames at 60 FPS)
         
     def take_damage(self, player):
         self.player_lives -= 1
+        self.lives_lost += 1
+        self.position_stack.clear()  # Reset stack on respawn
+        print(f"Player lost a life! Lives remaining: {self.player_lives}")
         # Trigger effects on damage
         self.shake_duration = 10
         self.flash_alpha = self.flash_max_alpha
         player.spawn_particles(player.rect.centerx, player.rect.centery, count=10)
-        # print("Effects triggered: shake, flash, particles")
+        print("Effects triggered: shake, flash, particles")

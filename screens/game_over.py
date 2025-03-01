@@ -41,7 +41,7 @@ def game_over_screen(screen, settings, score, db, logged_in_user):
         # Draw leaderboard if user is logged in and username is non-empty
         if logged_in_user and logged_in_user.strip():
             top_players = db.get_top_players()
-            print(f"Top players: {top_players}")
+            # print(f"Top players: {top_players}")
             if top_players:
                 leaderboard_title = font.render("Leaderboard - Top 5", True, (255, 255, 0))
                 leaderboard_title_rect = leaderboard_title.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 + 100))
