@@ -1,4 +1,3 @@
-# screens/game_over.py
 import pygame
 
 def game_over_screen(screen, settings, score, db, logged_in_user):
@@ -20,7 +19,7 @@ def game_over_screen(screen, settings, score, db, logged_in_user):
         
         screen.fill((0, 0, 0))
         
-        # Center-align all main texts
+        # Draw game over text
         title_text = font.render("Game Over!", True, (255, 0, 0))
         title_rect = title_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 - 60))
         
@@ -38,7 +37,7 @@ def game_over_screen(screen, settings, score, db, logged_in_user):
         screen.blit(restart_text, restart_rect)
         screen.blit(menu_text, menu_rect)
         
-        # Draw leaderboard if user is logged in and username is non-empty
+        # Draw leaderboard
         if logged_in_user and logged_in_user.strip():
             top_players = db.get_top_players()
             # print(f"Top players: {top_players}")

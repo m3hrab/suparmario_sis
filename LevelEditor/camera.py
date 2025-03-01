@@ -1,4 +1,3 @@
-# LevelEditor/camera.py
 import pygame
 from LevelEditor.settings import *
 

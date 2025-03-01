@@ -1,4 +1,3 @@
-# LevelEditor/settings.py
 import os
 
 # Screen settings

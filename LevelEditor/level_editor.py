@@ -1,4 +1,3 @@
-# LevelEditor/level_editor.py
 import pygame
 import json
 import os

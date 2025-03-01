@@ -1,4 +1,3 @@
-# game/level.py
 import pygame
 import json
 import os
@@ -9,7 +8,7 @@ class Level:
         self.decorative_tiles = []
         self.collectibles = []
         self.enemies = []
-        self.width = 2000  # Default from your settings
+        self.width = 2000  
         self.height = 1200
         self.load_level(level_file)
 

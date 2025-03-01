@@ -1,4 +1,3 @@
-# screens/login_screen.py
 import pygame
 from screens.base_screen import draw_screen
 
@@ -36,13 +35,13 @@ class LoginScreen:
             elif self.login_button_rect.collidepoint(event.pos):
                 self.success, self.message = self.database.login_user(self.username, self.password)
                 if self.success:
-                    logged_username = self.username  # Capture before clearing
+                    logged_username = self.username  
                     self.username = ""
                     self.password = ""
                     self.draw()
                     pygame.display.flip()
                     pygame.time.delay(2000)
-                    return "game", logged_username  # Return username with result
+                    return "game", logged_username  
                 else:
                     self.draw()
                     pygame.display.flip()
@@ -60,13 +59,13 @@ class LoginScreen:
             elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
                 self.success, self.message = self.database.login_user(self.username, self.password)
                 if self.success:
-                    logged_username = self.username  # Capture before clearing
+                    logged_username = self.username  
                     self.username = ""
                     self.password = ""
                     self.draw()
                     pygame.display.flip()
                     pygame.time.delay(2000)
-                    return "game", logged_username  # Return username with result
+                    return "game", logged_username 
                 else:
                     self.draw()
                     pygame.display.flip()

@@ -1,4 +1,3 @@
-# screens/game_screen.py
 import pygame
 import os
 import random
@@ -15,14 +14,14 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     pygame.mixer.init()
     clock = pygame.time.Clock()
     
-    # Load level
+    # level
     level_file = os.path.join("levels", f"level{level_number}.json")
     if not os.path.exists(level_file):
         print(f"Level {level_number} not found, defaulting to level1.json")
         level_file = os.path.join("levels", "level1.json")
     level = Level(level_file)
     
-    # Load sprites and audio
+    # sprites and audio
     backgrounds = [pygame.image.load(os.path.join(bg["file"])).convert() for bg in settings.background_layers]
     for i in range(len(backgrounds)):
         backgrounds[i] = pygame.transform.scale(backgrounds[i], (settings.screen_width, 1080))
@@ -38,7 +37,6 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     heart_full = pygame.transform.scale(heart_full, heart_size)
     heart_empty = pygame.transform.scale(heart_empty, heart_size)
     
-    # Initialize game objects
     game_instance = Game(settings)
     player = Player(settings.screen_width // 2, 400, game_instance)
     enemies = []
@@ -53,24 +51,24 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     score = 0
     running = True
     font = pygame.font.Font(None, 36)
-    small_font = pygame.font.Font(None, 24)  # For status text
+    small_font = pygame.font.Font(None, 24)  
     
     collectible_frame = 0
     collectible_animation_speed = 0.2
     collectible_timer = 0
     
-    # Screen shake variables
+    # Screen shake
     shake_offset = pygame.Vector2(0, 0)
     
-    # Screen flash variables
+    # Screen flash 
     flash_surface = pygame.Surface((settings.screen_width, settings.screen_height), pygame.SRCALPHA)
     
-    # Play background music and ambience
+    # background music and ambience
     pygame.mixer.music.load(settings.audio_files["music"])
     pygame.mixer.music.play(-1)
     sounds["ambience"].play(-1)
     
-    print(f"Game started, logged_in_user: {logged_in_user}")
+    print(f"logged_in_user: {logged_in_user}")
     
     while running:
         for event in pygame.event.get():
@@ -79,23 +77,24 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
                     running = False
-                elif event.key == pygame.K_u:  # Rewind with 'U' key
+                elif event.key == pygame.K_u:  
                     print(f"Attempting rewind, stack: {game_instance.position_stack}, cooldown: {game_instance.rewind_cooldown}")
                     if game_instance.rewind_cooldown <= 0 and game_instance.position_stack:
-                        target_x = player.rect.x - 320  # 10 tiles * 32px
-                        last_y = player.rect.y  # Default to current y
+                        target_x = player.rect.x - 320  # 10 * 32px
+                        last_y = player.rect.y  
                         while game_instance.position_stack and game_instance.position_stack[-1][0] > target_x:
                             last_pos = game_instance.position_stack.pop()
-                            last_y = last_pos[1]  # Use last y-position if beyond 10 tiles
+                            last_y = last_pos[1]  
                         player.rect.x = max(target_x, game_instance.position_stack[0][0] if game_instance.position_stack else target_x)
                         player.rect.y = last_y
-                        game_instance.rewind_cooldown = 300  # 5 seconds at 60 FPS
-                        print(f"Rewound 10 tiles to: ({player.rect.x}, {player.rect.y}), stack size: {len(game_instance.position_stack)}")
+                        game_instance.rewind_cooldown = 300  
+                        # print(f"Rewound 10 tiles to: ({player.rect.x}, {player.rect.y}), stack size: {len(game_instance.position_stack)}")
                     elif not game_instance.position_stack:
-                        print("No positions in stack to rewind to")
+                        # print("No positions to stack to rewind") ")
+                        pass
                     elif game_instance.rewind_cooldown > 0:
-                        print(f"Rewind on cooldown: {game_instance.rewind_cooldown // 60} seconds left")
-        
+                        # print(f"Rewind on cooldown: {game_instance.rewind_cooldown // 60} seconds left")
+                        pass
         if game_instance.player_lives > 0:
             # Game running
             player.update([t[0] for t in level.physics_tiles])
@@ -244,7 +243,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         dash_rect = dash_text.get_rect(center=(settings.screen_width // 2 + 80, 50))
         screen.blit(dash_text, dash_rect)
         
-        # Check win/lose conditions
+        # Check win/lose 
         next_level = level_number + 1
         next_level_file = os.path.join("levels", f"level{next_level}.json")
         
@@ -255,7 +254,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                 if user_id:
                     db.log_game_session(user_id, score, game_instance.lives_lost)
                     db.update_score(logged_in_user, score)
-                    print(f"Score updated for {logged_in_user}: {score}")
+                    # print(f"Score updated for {logged_in_user}: {score}")
             result = game_over_screen(screen, settings, score, db, logged_in_user)
             if result == "game":
                 return f"game:{level_number}"
@@ -268,13 +267,13 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                 if user_id:
                     db.log_game_session(user_id, score, game_instance.lives_lost)
                     db.update_score(logged_in_user, score)
-                    print(f"Score updated for {logged_in_user}: {score}")
+                    # print(f"Score updates for {logged_in_user}: {score}")
             return f"game:{next_level}"
         
         pygame.display.flip()
         clock.tick(settings.fps)
     
-    # Stop music and ambience when exiting
+    
     pygame.mixer.music.stop()
     sounds["ambience"].stop()
     
@@ -283,29 +282,27 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         if user_id:
             db.log_game_session(user_id, score, game_instance.lives_lost)
             db.update_score(logged_in_user, score)
-            print(f"Score updated for {logged_in_user}: {score} on quit")
+            # print(f"Score updates {logged_in_user}: {score} on quit")
     return "menu"
 
 class Game:
     def __init__(self, settings):
         self.player_lives = settings.starting_lives
-        self.DAMAGE_AMOUNT = settings.damage_amount
+        # self.DAMAGE_AMOUNT = settings.damage_amount
         self.shake_duration = 0
         self.shake_intensity = 5
         self.flash_alpha = 0
         self.flash_max_alpha = 150
         self.flash_duration = 10
         self.lives_lost = 0
-        self.position_stack = []  # Stack for position history 
+        self.position_stack = []  
         self.rewind_cooldown = 0  
         
     def take_damage(self, player):
         self.player_lives -= 1
         self.lives_lost += 1
-        self.position_stack.clear()  # Reset stack on respawn
-        print(f"Player lost a life! Lives remaining: {self.player_lives}")
+        self.position_stack.clear()  # Reset stack 
         # Trigger effects on damage
         self.shake_duration = 10
         self.flash_alpha = self.flash_max_alpha
         player.spawn_particles(player.rect.centerx, player.rect.centery, count=10)
-        print("Effects triggered: shake, flash, particles")

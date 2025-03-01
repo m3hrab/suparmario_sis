@@ -241,7 +241,7 @@ class EnemyShooter:
                 self.projectiles.remove(proj)
             elif proj.rect.colliderect(player.rect):
                 if self.game:
-                    self.game.take_damage(player)  # Remove DAMAGE_AMOUNT argument
+                    self.game.take_damage(player)  # causing thee issuse
                     self.projectiles.remove(proj)
         
         remaining_particles = []

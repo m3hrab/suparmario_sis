@@ -1,4 +1,3 @@
-# config/settings.py
 import pygame
 import os
 
@@ -57,7 +56,7 @@ class Settings:
         self.heart_full_image = os.path.join("Assets", "hearts", "hartfill.png")
         self.heart_empty_image = os.path.join("Assets", "hearts", "hartempty.png")
 
-        # Audio files (updated with new sounds)
+        # Audio files
         self.audio_files = {
             "ambience": os.path.join("Assets", "Audio", "Sound", "ambience.wav"),
             "coin": os.path.join("Assets", "Audio", "Sound", "coin.wav"),

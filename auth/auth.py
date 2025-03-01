@@ -1,4 +1,3 @@
-# auth/auth.py
 import sqlite3
 import hashlib
 
@@ -6,7 +5,7 @@ class Database:
     def __init__(self, db_path="auth/users.db"):
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
-        # Table to store user information
+        # user information table
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -15,7 +14,7 @@ class Database:
                 highest_score INTEGER DEFAULT 0
             )
         """)
-        # Table to store game sessions of users
+        # game sessions table
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS game_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +50,7 @@ class Database:
         if current_score and score > current_score[0]:
             self.cursor.execute("UPDATE users SET highest_score = ? WHERE username = ?", (score, username))
             self.conn.commit()
-            print(f"Updated {username}'s highest score to {score}")
+            # print(f"Updated {username} highest score to {score}")
 
     def get_top_players(self):
         self.cursor.execute("SELECT username, highest_score FROM users ORDER BY highest_score DESC LIMIT 5")
@@ -75,7 +74,7 @@ class Database:
         self.cursor.execute("INSERT INTO game_sessions (user_id, score, timestamp, lives_lost) VALUES (?, ?, ?, ?)",
                             (user_id, score, timestamp, lives_lost))
         self.conn.commit()
-        print(f"Logged session for user_id {user_id}: score={score}, lives_lost={lives_lost}, timestamp={timestamp}")
+        # print(f"Logged session user_id {user_id}: score={score}, lives_lost={lives_lost}, timestamp={timestamp}")
 
     def get_user_id(self, username):
         """Get user ID from username."""

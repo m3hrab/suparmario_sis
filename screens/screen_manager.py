@@ -1,4 +1,3 @@
-# screens/screen_manager.py
 import pygame
 from screens.menu_screen import menu_screen
 from screens.second_menu_screen import second_menu_screen
@@ -28,7 +27,7 @@ class ScreenManager:
                 (372, 217, 210, 47, "login"),
                 (372, 279, 210, 47, "signup"),
                 (372, 380, 210, 47, "game"),
-                (372, 442, 210, 47, "game")  # Play without login
+                (372, 442, 210, 47, "game")  
             ],
             "signup": [
                 (375, 376, 211, 55, "game"),
@@ -38,7 +37,7 @@ class ScreenManager:
     
     def change_screen(self, new_screen):
         if new_screen:
-            if isinstance(new_screen, tuple):  # Handle (screen, username) from login
+            if isinstance(new_screen, tuple): 
                 screen_name, username = new_screen
                 self.logged_in_user = username
                 self.current_screen = screen_name
