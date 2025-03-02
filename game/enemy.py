@@ -1,3 +1,4 @@
+# game/enemy.py
 import pygame
 import os
 from game.projectile import Projectile
@@ -5,27 +6,16 @@ from config.settings import Settings
 
 settings = Settings()
 
-class EnemyWalker:
+class Enemy:
     def __init__(self, x, y, tiles, game=None):
         self.rect = pygame.Rect(x, y, *settings.enemy_size)
         self.velocity = pygame.Vector2(-settings.enemy_speed, 0)
-        self.speed = settings.enemy_speed
         self.gravity = settings.gravity
-        self.attack_cooldown = settings.attack_cooldown
-        self.attack_timer = 0
+        self.speed = settings.enemy_speed
         self.game = game
+        self.tiles = tiles
         self.snap_to_ground(tiles)
-        
-        self.animations = {
-            "idle": [pygame.image.load(os.path.join("Assets", "Enemies", "Crab", "Idle", f"crab-idle{i}.png")).convert_alpha() for i in range(1, 5)],
-            "walk": [pygame.image.load(os.path.join("Assets", "Enemies", "Crab", "Walk", f"crab-walk{i}.png")).convert_alpha() for i in range(1, 7)]
-        }
-        self.current_animation = "walk"
-        self.frame_index = 0
-        self.animation_speed = 0.1
-        self.animation_timer = 0
-        self.facing_right = True
-
+    
     def snap_to_ground(self, tiles):
         temp_rect = self.rect.copy()
         while temp_rect.y < settings.level_height:
@@ -37,27 +27,26 @@ class EnemyWalker:
             if temp_rect.y > self.rect.y + 100:
                 break
         self.rect.bottom = 500
-
-    def update(self, tiles, player):
+    
+    def apply_gravity(self):
         self.velocity.y += self.gravity
         self.velocity.y = min(self.velocity.y, 15)
-        
+    
+    def move_horizontal(self):
         self.rect.x += self.velocity.x
-        
-        for tile in tiles:
+        for tile in self.tiles:
             if self.rect.colliderect(tile):
                 if self.velocity.x > 0:
                     self.rect.right = tile.left
                     self.velocity.x = -self.speed
-                    self.facing_right = False
                 elif self.velocity.x < 0:
                     self.rect.left = tile.right
                     self.velocity.x = self.speed
-                    self.facing_right = True
-        
+    
+    def move_vertical(self):
         self.rect.y += self.velocity.y
         on_ground = False
-        for tile in tiles:
+        for tile in self.tiles:
             if self.rect.colliderect(tile):
                 if self.velocity.y > 0:
                     self.rect.bottom = tile.top
@@ -66,6 +55,36 @@ class EnemyWalker:
                 elif self.velocity.y < 0:
                     self.rect.top = tile.bottom
                     self.velocity.y = 0
+        return on_ground
+    
+    def update(self, tiles, player):
+        pass
+    
+    def draw(self, screen, camera):
+        pass
+
+class EnemyCrab(Enemy):
+    def __init__(self, x, y, tiles, game=None):
+        super().__init__(x, y, tiles, game)
+        self.attack_cooldown = settings.attack_cooldown
+        self.attack_timer = 0
+        
+        self.animations = {
+            "idle": [pygame.image.load(os.path.join("Assets", "Enemies", "Crab", "Idle", f"crab-idle{i}.png")).convert_alpha() for i in range(1, 5)],
+            "walk": [pygame.image.load(os.path.join("Assets", "Enemies", "Crab", "Walk", f"crab-walk{i}.png")).convert_alpha() for i in range(1, 7)]
+        }
+        self.current_animation = "walk"
+        self.frame_index = 0
+        self.animation_speed = 0.1
+        self.animation_timer = 0
+        self.facing_right = True
+    
+    def update(self, tiles, player):
+        self.apply_gravity()
+        
+        self.move_horizontal()
+        
+        on_ground = self.move_vertical()
         
         if on_ground:
             edge_ahead = pygame.Rect(
@@ -75,23 +94,20 @@ class EnemyWalker:
             if not any(edge_ahead.colliderect(tile) for tile in tiles):
                 self.velocity.x = -self.velocity.x
                 self.facing_right = not self.facing_right
-
+        
         if self.attack_timer > 0:
             self.attack_timer -= 1
-        
-        if self.rect.colliderect(player.rect) and self.attack_timer == 0:
-            self.attack(player)
         
         self.animation_timer += self.animation_speed
         if self.animation_timer >= 1:
             self.frame_index = (self.frame_index + 1) % len(self.animations[self.current_animation])
             self.animation_timer = 0
-
+    
     def attack(self, player):
-        self.attack_timer = self.attack_cooldown
-        if self.game:
+        if self.attack_timer <= 0 and self.game:
             self.game.take_damage(player)
-
+            self.attack_timer = self.attack_cooldown
+    
     def draw(self, screen, camera):
         frame = self.animations[self.current_animation][self.frame_index]
         if not self.facing_right:
@@ -99,12 +115,9 @@ class EnemyWalker:
         adjusted_rect = camera.apply(self.rect)
         screen.blit(frame, adjusted_rect)
 
-class EnemyShooter:
+class EnemyLizard(Enemy):
     def __init__(self, x, y, tiles, game=None):
-        self.rect = pygame.Rect(x, y, *settings.enemy_size)
-        self.velocity = pygame.Vector2(-settings.enemy_speed, 0)
-        self.speed = settings.enemy_speed
-        self.gravity = settings.gravity
+        super().__init__(x, y, tiles, game)
         self.shoot_cooldown = settings.shoot_cooldown
         self.shoot_timer = 0
         self.projectiles = []
@@ -112,8 +125,6 @@ class EnemyShooter:
         self.shooting = False
         self.shoot_duration = 30
         self.shoot_duration_timer = 0
-        self.game = game
-        self.snap_to_ground(tiles)
         
         self.animations = {
             "move": [pygame.image.load(os.path.join("Assets", "Enemies", "Lizzard", "lizard moves", f"lizard-move{i}.png")).convert_alpha() for i in range(1, 4)],
@@ -126,19 +137,7 @@ class EnemyShooter:
         self.facing_right = False
         self.shoot_range = 400
         self.min_shoot_range = 100
-
-    def snap_to_ground(self, tiles):
-        temp_rect = self.rect.copy()
-        while temp_rect.y < settings.level_height:
-            temp_rect.y += 1
-            for tile in tiles:
-                if temp_rect.colliderect(tile):
-                    self.rect.bottom = tile.top
-                    return
-            if temp_rect.y > self.rect.y + 100:
-                break
-        self.rect.bottom = 500
-
+    
     def check_line_of_sight(self, tiles, player):
         direction = 1 if self.facing_right else -1
         start_x = self.rect.centerx
@@ -162,10 +161,8 @@ class EnemyShooter:
             current_x += step
         return True
 
-
     def update(self, tiles, player):
-        self.velocity.y += self.gravity
-        self.velocity.y = min(self.velocity.y, 15)
+        self.apply_gravity()
         
         player_dx = player.rect.centerx - self.rect.centerx
         player_dy = player.rect.centery - self.rect.centery
@@ -186,31 +183,10 @@ class EnemyShooter:
                     self.frame_index = 0
                 self.facing_right = player_dx > 0
         else:
-            self.rect.x += self.velocity.x
-            for tile in tiles:
-                if self.rect.colliderect(tile):
-                    if self.velocity.x > 0:
-                        self.rect.right = tile.left
-                        self.velocity.x = -self.speed
-                        self.facing_right = False
-                    elif self.velocity.x < 0:
-                        self.rect.left = tile.right
-                        self.velocity.x = self.speed
-                        self.facing_right = True
-            
+            self.move_horizontal()
             self.facing_right = self.velocity.x > 0
         
-        self.rect.y += self.velocity.y
-        on_ground = False
-        for tile in tiles:
-            if self.rect.colliderect(tile):
-                if self.velocity.y > 0:
-                    self.rect.bottom = tile.top
-                    self.velocity.y = 0
-                    on_ground = True
-                elif self.velocity.y < 0:
-                    self.rect.top = tile.bottom
-                    self.velocity.y = 0
+        on_ground = self.move_vertical()
         
         if on_ground and not self.shooting:
             edge_ahead = pygame.Rect(
@@ -220,7 +196,7 @@ class EnemyShooter:
             if not any(edge_ahead.colliderect(tile) for tile in tiles):
                 self.velocity.x = -self.velocity.x
                 self.facing_right = self.velocity.x > 0
-
+        
         if self.shoot_timer > 0:
             self.shoot_timer -= 1
         
@@ -239,10 +215,6 @@ class EnemyShooter:
             if proj.remove:
                 self.particle_effects.extend(proj.update_particles())
                 self.projectiles.remove(proj)
-            elif proj.rect.colliderect(player.rect):
-                if self.game:
-                    self.game.take_damage(player)  # causing thee issuse
-                    self.projectiles.remove(proj)
         
         remaining_particles = []
         for particle, velocity, lifetime in self.particle_effects[:]:
@@ -257,7 +229,7 @@ class EnemyShooter:
         if self.animation_timer >= 1:
             self.frame_index = (self.frame_index + 1) % len(self.animations[self.current_animation])
             self.animation_timer = 0
-            
+    
     def draw_projectiles(self, screen, camera):
         for proj in self.projectiles:
             proj.draw(screen, camera)

@@ -2,7 +2,7 @@ import pygame
 import os
 import random
 from game.camera import Camera
-from game.enemy import EnemyWalker, EnemyShooter
+from game.enemy import EnemyCrab, EnemyLizard  # Updated imports
 from game.level import Level
 from game.player import Player
 from game.projectile import Projectile
@@ -14,14 +14,14 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     pygame.mixer.init()
     clock = pygame.time.Clock()
     
-    # level
+    # Load level
     level_file = os.path.join("levels", f"level{level_number}.json")
     if not os.path.exists(level_file):
         print(f"Level {level_number} not found, defaulting to level1.json")
         level_file = os.path.join("levels", "level1.json")
     level = Level(level_file)
     
-    # sprites and audio
+    # Load sprites and audio
     backgrounds = [pygame.image.load(os.path.join(bg["file"])).convert() for bg in settings.background_layers]
     for i in range(len(backgrounds)):
         backgrounds[i] = pygame.transform.scale(backgrounds[i], (settings.screen_width, 1080))
@@ -37,38 +37,39 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     heart_full = pygame.transform.scale(heart_full, heart_size)
     heart_empty = pygame.transform.scale(heart_empty, heart_size)
     
+    # Initialize game objects
     game_instance = Game(settings)
     player = Player(settings.screen_width // 2, 400, game_instance)
     enemies = []
     for enemy_rect, enemy_type in level.enemies:
-        if enemy_type == "walker":
-            enemies.append(EnemyWalker(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
-        elif enemy_type == "shooter":
-            enemies.append(EnemyShooter(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
+        if enemy_type == "walker":  # Update to "crab" in your level JSON later
+            enemies.append(EnemyCrab(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
+        elif enemy_type == "shooter":  # Update to "lizard" in your level JSON later
+            enemies.append(EnemyLizard(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
     camera = Camera(level.width, level.height, settings.screen_width, settings.screen_height)
     camera.update(player.rect)
     
     score = 0
     running = True
     font = pygame.font.Font(None, 36)
-    small_font = pygame.font.Font(None, 24)  
+    small_font = pygame.font.Font(None, 24)  # For dash status
     
     collectible_frame = 0
     collectible_animation_speed = 0.2
     collectible_timer = 0
     
-    # Screen shake
+    # Screen shake variables
     shake_offset = pygame.Vector2(0, 0)
     
-    # Screen flash 
+    # Screen flash variables
     flash_surface = pygame.Surface((settings.screen_width, settings.screen_height), pygame.SRCALPHA)
     
-    # background music and ambience
+    # Play background music and ambience
     pygame.mixer.music.load(settings.audio_files["music"])
     pygame.mixer.music.play(-1)
     sounds["ambience"].play(-1)
     
-    print(f"logged_in_user: {logged_in_user}")
+    print(f"Game started, logged_in_user: {logged_in_user}")
     
     while running:
         for event in pygame.event.get():
@@ -77,24 +78,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
                     running = False
-                elif event.key == pygame.K_u:  
-                    print(f"Attempting rewind, stack: {game_instance.position_stack}, cooldown: {game_instance.rewind_cooldown}")
-                    if game_instance.rewind_cooldown <= 0 and game_instance.position_stack:
-                        target_x = player.rect.x - 320  # 10 * 32px
-                        last_y = player.rect.y  
-                        while game_instance.position_stack and game_instance.position_stack[-1][0] > target_x:
-                            last_pos = game_instance.position_stack.pop()
-                            last_y = last_pos[1]  
-                        player.rect.x = max(target_x, game_instance.position_stack[0][0] if game_instance.position_stack else target_x)
-                        player.rect.y = last_y
-                        game_instance.rewind_cooldown = 300  
-                        # print(f"Rewound 10 tiles to: ({player.rect.x}, {player.rect.y}), stack size: {len(game_instance.position_stack)}")
-                    elif not game_instance.position_stack:
-                        # print("No positions to stack to rewind") ")
-                        pass
-                    elif game_instance.rewind_cooldown > 0:
-                        # print(f"Rewind on cooldown: {game_instance.rewind_cooldown // 60} seconds left")
-                        pass
+        
         if game_instance.player_lives > 0:
             # Game running
             player.update([t[0] for t in level.physics_tiles])
@@ -103,32 +87,37 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             if player.dashing and player.dash_timer == player.dash_duration - 1:
                 sounds["dash"].play()
             
-            # Stack: Track player position
-            if len(game_instance.position_stack) < 5:
-                game_instance.position_stack.append((player.rect.x, player.rect.y))
-            else:
-                game_instance.position_stack.pop(0)  # Remove oldest
-                game_instance.position_stack.append((player.rect.x, player.rect.y))
-            
-            # Update rewind cooldown
-            if game_instance.rewind_cooldown > 0:
-                game_instance.rewind_cooldown -= 1
+            # Update damage cooldown
+            if game_instance.damage_cooldown > 0:
+                game_instance.damage_cooldown -= 1
             
             for enemy in enemies[:]:
                 enemy.update([t[0] for t in level.physics_tiles], player)
-                if isinstance(enemy, EnemyShooter) and enemy.shoot_timer == settings.shoot_cooldown - 1:
+                if isinstance(enemy, EnemyLizard) and enemy.shoot_timer == settings.shoot_cooldown - 1:
                     sounds["shoot"].play()
                 if player.rect.colliderect(enemy.rect):
-                    if player.dashing:
+                    # Jump on head defeat condition
+                    if player.velocity.y > 0 and enemy.rect.top < player.rect.bottom <= enemy.rect.top + enemy.rect.height and game_instance.damage_cooldown <= 0:
                         sounds["enemy_death"].play()
-                        player.spawn_particles(enemy.rect.centerx, player.rect.centery)
+                        player.spawn_particles(enemy.rect.centerx, enemy.rect.centery)
                         enemies.remove(enemy)
                         score += settings.score_per_enemy
-                    elif isinstance(enemy, EnemyWalker):
+                        print(f"Enemy ({type(enemy).__name__}) defeated by jump at ({enemy.rect.x}, {enemy.rect.y}), player bottom: {player.rect.bottom}, enemy top: {enemy.rect.top}, score: {score}")
+                        player.velocity.y = -5  # Small bounce effect
+                    # Dash defeat condition
+                    elif player.dashing and game_instance.damage_cooldown <= 0:
+                        sounds["enemy_death"].play()
+                        player.spawn_particles(enemy.rect.centerx, enemy.rect.centery)
+                        enemies.remove(enemy)
+                        score += settings.score_per_enemy
+                        print(f"Enemy ({type(enemy).__name__}) defeated by dash at ({enemy.rect.x}, {enemy.rect.y}), dashing: {player.dashing}, score: {score}")
+                    # Take damage if not dashing or jumping on head
+                    elif game_instance.damage_cooldown <= 0:
                         game_instance.take_damage(player)
                         sounds["hurt"].play()
                         player.rect.x = settings.screen_width // 2
                         player.rect.y = 400
+                        print(f"Player respawned at ({player.rect.x}, {player.rect.y}) due to enemy ({type(enemy).__name__}) contact")
             
             for collectible in level.collectibles[:]:
                 if player.rect.colliderect(collectible[0]):
@@ -137,14 +126,15 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                     score += settings.score_per_collectible
             
             for enemy in enemies:
-                if isinstance(enemy, EnemyShooter):
+                if isinstance(enemy, EnemyLizard):  # Updated to EnemyLizard
                     for proj in enemy.projectiles[:]:
-                        if proj.rect.colliderect(player.rect):
+                        if proj.rect.colliderect(player.rect) and game_instance.damage_cooldown <= 0:
                             game_instance.take_damage(player)
                             sounds["hurt"].play()
                             player.rect.x = settings.screen_width // 2
                             player.rect.y = 400
                             enemy.projectiles.remove(proj)
+                            print(f"Player respawned at ({player.rect.x}, {player.rect.y}) due to projectile hit")
             
             camera.update(player.rect)
             
@@ -211,7 +201,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         
         for enemy in enemies:
             enemy.draw(screen, camera)
-            if isinstance(enemy, EnemyShooter):
+            if isinstance(enemy, EnemyLizard):  # Updated to EnemyLizard
                 enemy.draw_projectiles(screen, camera)
         
         # Draw screen flash overlay
@@ -232,18 +222,13 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             else:
                 screen.blit(heart_empty, (settings.screen_width - 40 - i * 40, 10))
         
-        # Rewind and Dash status
-        rewind_status = "Rewind: Ready" if game_instance.rewind_cooldown <= 0 else f"Rewind: {game_instance.rewind_cooldown // 60}s"
-        rewind_text = small_font.render(rewind_status, True, settings.text_color)
-        rewind_rect = rewind_text.get_rect(center=(settings.screen_width // 2 - 80, 50))
-        screen.blit(rewind_text, rewind_rect)
-        
+        # Dash status
         dash_status = "Dash: Ready" if player.dash_cooldown_timer <= 0 else f"Dash: {player.dash_cooldown_timer // 60}s"
         dash_text = small_font.render(dash_status, True, settings.text_color)
-        dash_rect = dash_text.get_rect(center=(settings.screen_width // 2 + 80, 50))
+        dash_rect = dash_text.get_rect(center=(settings.screen_width // 2, 50))
         screen.blit(dash_text, dash_rect)
         
-        # Check win/lose 
+        # Check win/lose conditions
         next_level = level_number + 1
         next_level_file = os.path.join("levels", f"level{next_level}.json")
         
@@ -254,7 +239,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                 if user_id:
                     db.log_game_session(user_id, score, game_instance.lives_lost)
                     db.update_score(logged_in_user, score)
-                    # print(f"Score updated for {logged_in_user}: {score}")
+                    print(f"Score updated for {logged_in_user}: {score}")
             result = game_over_screen(screen, settings, score, db, logged_in_user)
             if result == "game":
                 return f"game:{level_number}"
@@ -267,13 +252,13 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                 if user_id:
                     db.log_game_session(user_id, score, game_instance.lives_lost)
                     db.update_score(logged_in_user, score)
-                    # print(f"Score updates for {logged_in_user}: {score}")
+                    print(f"Score updated for {logged_in_user}: {score}")
             return f"game:{next_level}"
         
         pygame.display.flip()
         clock.tick(settings.fps)
     
-    
+    # Stop music and ambience when exiting
     pygame.mixer.music.stop()
     sounds["ambience"].stop()
     
@@ -282,27 +267,32 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         if user_id:
             db.log_game_session(user_id, score, game_instance.lives_lost)
             db.update_score(logged_in_user, score)
-            # print(f"Score updates {logged_in_user}: {score} on quit")
+            print(f"Score updated for {logged_in_user}: {score} on quit")
     return "menu"
 
 class Game:
     def __init__(self, settings):
         self.player_lives = settings.starting_lives
-        # self.DAMAGE_AMOUNT = settings.damage_amount
+        self.DAMAGE_AMOUNT = settings.damage_amount
         self.shake_duration = 0
         self.shake_intensity = 5
         self.flash_alpha = 0
         self.flash_max_alpha = 150
         self.flash_duration = 10
         self.lives_lost = 0
-        self.position_stack = []  
-        self.rewind_cooldown = 0  
+        self.damage_cooldown = 0  # Cooldown in frames (0.5s = 30 frames at 60 FPS)
         
     def take_damage(self, player):
-        self.player_lives -= 1
-        self.lives_lost += 1
-        self.position_stack.clear()  # Reset stack 
-        # Trigger effects on damage
-        self.shake_duration = 10
-        self.flash_alpha = self.flash_max_alpha
-        player.spawn_particles(player.rect.centerx, player.rect.centery, count=10)
+        if self.damage_cooldown <= 0:  # Only take damage if cooldown is off
+            self.player_lives -= 1
+            self.lives_lost += 1
+            self.damage_cooldown = 30  # Set cooldown to 0.5 seconds
+            print(f"Player lost a life! Lives remaining: {self.player_lives}")
+            # Trigger effects on damage
+            self.shake_duration = 10
+            self.flash_alpha = self.flash_max_alpha
+            player.spawn_particles(player.rect.centerx, player.rect.centery, count=10)
+            print("Effects triggered: shake, flash, particles")
+            # Explicit respawn
+            player.rect.x = 480  # Hardcoded for clarity (settings.screen_width // 2)
+            player.rect.y = 400
