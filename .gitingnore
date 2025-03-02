@@ -1,0 +1,37 @@
+# Compiled source files
+*.class
+
+# Log files
+*.log
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# IDE directories
+/.idea/
+/.vscode/
+/*.iml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Python files
+*.pyc
+__pycache__/
+
+# Node.js files
+node_modules/
+
+# Build directories
+/build/
+/dist/
+
+# Environment variables
+.env
+
+# Other
+*.swp
+*.swo
