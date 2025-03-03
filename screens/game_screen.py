@@ -1,8 +1,9 @@
+# screens/game_screen.py
 import pygame
 import os
 import random
 from game.camera import Camera
-from game.enemy import EnemyCrab, EnemyLizard  # Updated imports
+from game.enemy import EnemyCrab, EnemyLizard
 from game.level import Level
 from game.player import Player
 from game.projectile import Projectile
@@ -14,7 +15,35 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     pygame.mixer.init()
     clock = pygame.time.Clock()
     
-    # Load level
+    def reset_level():
+        """Reset level state, including player lives."""
+        nonlocal level, player, enemies, score, collectible_frame, collectible_timer, game_instance
+        # Reload level
+        level_file = os.path.join("levels", f"level{level_number}.json")
+        if not os.path.exists(level_file):
+            level_file = os.path.join("levels", "level1.json")
+        level = Level(level_file)
+        
+        # Reset player position and game instance
+        game_instance = Game(settings)  # Reset lives and related state
+        player = Player(settings.screen_width // 2, 400, game_instance)
+        
+        # Reload enemies
+        enemies.clear()
+        for enemy_rect, enemy_type in level.enemies:
+            if enemy_type == "walker":
+                enemies.append(EnemyCrab(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
+            elif enemy_type == "shooter":
+                enemies.append(EnemyLizard(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
+        
+        # Reset score and collectibles animation
+        score = 0
+        collectible_frame = 0
+        collectible_timer = 0
+        camera.update(player.rect)
+        print(f"Level {level_number} restarted, lives reset to {game_instance.player_lives}")
+
+    # Load level (initial)
     level_file = os.path.join("levels", f"level{level_number}.json")
     if not os.path.exists(level_file):
         print(f"Level {level_number} not found, defaulting to level1.json")
@@ -30,6 +59,8 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     collectible_sprites = [pygame.image.load(file).convert_alpha() for file in settings.collectible_images]
     heart_full = pygame.image.load(settings.heart_full_image).convert_alpha()
     heart_empty = pygame.image.load(settings.heart_empty_image).convert_alpha()
+    shield_image = pygame.image.load(os.path.join("Assets", "Shield", "Shield.png")).convert_alpha()  # Load shield sprite
+    shield_image = pygame.transform.scale(shield_image, (32, 32))  # Scale to 32x32
     sounds = {key: pygame.mixer.Sound(file) for key, file in settings.audio_files.items()}
     
     # Scale hearts
@@ -42,9 +73,9 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
     player = Player(settings.screen_width // 2, 400, game_instance)
     enemies = []
     for enemy_rect, enemy_type in level.enemies:
-        if enemy_type == "walker":  # Update to "crab" in your level JSON later
+        if enemy_type == "walker":
             enemies.append(EnemyCrab(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
-        elif enemy_type == "shooter":  # Update to "lizard" in your level JSON later
+        elif enemy_type == "shooter":
             enemies.append(EnemyLizard(enemy_rect.x, enemy_rect.y, [t[0] for t in level.physics_tiles], game_instance))
     camera = Camera(level.width, level.height, settings.screen_width, settings.screen_height)
     camera.update(player.rect)
@@ -78,6 +109,12 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
                     running = False
+                elif event.key == pygame.K_r:  # Restart level with 'R'
+                    reset_level()
+                elif event.key == pygame.K_f and game_instance.shield_timer <= 0:  # Activate shield with 'F'
+                    game_instance.shield_timer = 180  # 3 seconds at 60 FPS
+                    game_instance.shield_active = True
+                    print("Shield activated")
         
         if game_instance.player_lives > 0:
             # Game running
@@ -87,9 +124,14 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
             if player.dashing and player.dash_timer == player.dash_duration - 1:
                 sounds["dash"].play()
             
-            # Update damage cooldown
+            # Update damage and shield cooldowns
             if game_instance.damage_cooldown > 0:
                 game_instance.damage_cooldown -= 1
+            if game_instance.shield_timer > 0:
+                game_instance.shield_timer -= 1
+                if game_instance.shield_timer <= 0:
+                    game_instance.shield_active = False
+                    print("Shield deactivated")
             
             for enemy in enemies[:]:
                 enemy.update([t[0] for t in level.physics_tiles], player)
@@ -126,15 +168,22 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                     score += settings.score_per_collectible
             
             for enemy in enemies:
-                if isinstance(enemy, EnemyLizard):  # Updated to EnemyLizard
+                if isinstance(enemy, EnemyLizard):
                     for proj in enemy.projectiles[:]:
                         if proj.rect.colliderect(player.rect) and game_instance.damage_cooldown <= 0:
-                            game_instance.take_damage(player)
-                            sounds["hurt"].play()
-                            player.rect.x = settings.screen_width // 2
-                            player.rect.y = 400
-                            enemy.projectiles.remove(proj)
-                            print(f"Player respawned at ({player.rect.x}, {player.rect.y}) due to projectile hit")
+                            if game_instance.shield_active:
+                                # Shield blocks fireball
+                                proj.spawn_particles()  # Same particles as wall hit
+                                enemy.projectiles.remove(proj)
+                                print(f"Shield blocked fireball at ({proj.rect.x}, {proj.rect.y})")
+                            else:
+                                # Take damage if shield inactive
+                                game_instance.take_damage(player)
+                                sounds["hurt"].play()
+                                player.rect.x = settings.screen_width // 2
+                                player.rect.y = 400
+                                enemy.projectiles.remove(proj)
+                                print(f"Player respawned at ({player.rect.x}, {player.rect.y}) due to projectile hit")
             
             camera.update(player.rect)
             
@@ -195,13 +244,18 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         
         player.draw(screen, camera)
         
+        # Draw shield when active
+        if game_instance.shield_active:
+            shield_rect = camera.apply(player.rect)
+            screen.blit(shield_image, shield_rect)
+        
         for particle in player.particles:
             adjusted_particle_rect = camera.apply(particle.rect).move(shake_offset.x, shake_offset.y)
             pygame.draw.rect(screen, settings.particle_color, adjusted_particle_rect)
         
         for enemy in enemies:
             enemy.draw(screen, camera)
-            if isinstance(enemy, EnemyLizard):  # Updated to EnemyLizard
+            if isinstance(enemy, EnemyLizard):
                 enemy.draw_projectiles(screen, camera)
         
         # Draw screen flash overlay
@@ -273,7 +327,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
 class Game:
     def __init__(self, settings):
         self.player_lives = settings.starting_lives
-        self.DAMAGE_AMOUNT = settings.damage_amount
+        self.Damage_AMOUNT = settings.damage_amount
         self.shake_duration = 0
         self.shake_intensity = 5
         self.flash_alpha = 0
@@ -281,6 +335,8 @@ class Game:
         self.flash_duration = 10
         self.lives_lost = 0
         self.damage_cooldown = 0  # Cooldown in frames (0.5s = 30 frames at 60 FPS)
+        self.shield_active = False  # Shield state
+        self.shield_timer = 0  # Shield duration in frames
         
     def take_damage(self, player):
         if self.damage_cooldown <= 0:  # Only take damage if cooldown is off

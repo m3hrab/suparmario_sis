@@ -1,10 +1,27 @@
 import sqlite3
-import hashlib
+
+class HashTable:
+    def __init__(self):
+        self.table = {}
+
+    def hash(self, key):
+        hash_value = 0
+        for char in key:
+            hash_value = (hash_value * 31 + ord(char)) & 0xFFFFFFFF
+        return hash_value
+
+    def store(self, key, value):
+        self.table[key] = value
+
+    def retrieve(self, key):
+        return self.table.get(key, None)
 
 class Database:
     def __init__(self, db_path="auth/users.db"):
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
+        self.hashtable = HashTable()
+
         # user information table
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -29,7 +46,11 @@ class Database:
 
     @staticmethod
     def hash_password(password):
-        return hashlib.sha256(password.encode()).hexdigest()
+        # Use the HashTable to store and retrieve hashed passwords
+        hashtable = HashTable()
+        hashed_password = hashtable.hash(password)
+        hashtable.store(password, hashed_password)
+        return str(hashed_password)
 
     def signup_user(self, username, password):
         try:

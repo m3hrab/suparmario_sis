@@ -62,7 +62,7 @@ class SignupScreen:
                 elif self.password_active:
                     self.password = self.password[:-1]
             elif event.key == pygame.K_RETURN:
-                self.success, self.message = self.db.register_user(self.username, self.password)
+                self.success, self.message = self.db.signup_user(self.username, self.password)
                 if self.success:
                     self.draw()
                     pygame.display.flip()
@@ -95,8 +95,3 @@ class SignupScreen:
             message_rect = message_surface.get_rect(center=(self.screen.get_width() // 2, self.password_rect.y + 70))
             self.screen.blit(message_surface, message_rect)
             self.message = ""
-
-        # pygame.draw.rect(self.screen, (255, 255, 255), self.username_rect, 2)
-        # pygame.draw.rect(self.screen, (255, 255, 255), self.password_rect, 2)
-        # pygame.draw.rect(self.screen, (0, 255, 0), self.signup_button_rect, 2)
-        # pygame.draw.rect(self.screen, (0, 0, 255), self.login_button_rect, 2)
