@@ -1,4 +1,3 @@
-# screens/game_screen.py
 import pygame
 import os
 import random
@@ -350,12 +349,12 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         
         dash_status = "Dash: Ready" if player.dash_cooldown_timer <= 0 else f"Dash: {player.dash_cooldown_timer // 60}s"
         dash_text = small_font.render(dash_status, True, settings.text_color)
-        dash_rect = dash_text.get_rect(center=(settings.screen_width // 2 - 50, 50))
+        dash_rect = dash_text.get_rect(center=(settings.screen_width // 2 - 55, 50))
         screen.blit(dash_text, dash_rect)
         
         shield_status = "Shield: Ready" if game_instance.shield_cooldown <= 0 else f"Shield: {game_instance.shield_cooldown // 60}s"
         shield_text = small_font.render(shield_status, True, settings.text_color)
-        shield_rect = shield_text.get_rect(center=(settings.screen_width // 2 + 50, 50))
+        shield_rect = shield_text.get_rect(center=(settings.screen_width // 2 + 55, 50))
         screen.blit(shield_text, shield_rect)
         
         # Draw transition overlay
@@ -366,19 +365,25 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         
         # Draw endgame message
         if endgame_message:
+            sounds["level_complete"].play()
+
             message_text = font.render("All levels completed", True, settings.text_color)
             message_rect = message_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2))
             screen.blit(message_text, message_rect)
         
         # Check level completion
         if not level.collectibles and not transitioning and not endgame_message:
+            sounds["level_complete"].play()
             next_level_file = os.path.join("levels", f"level{level_number + 1}.json")
             if os.path.exists(next_level_file):
                 transitioning = True
                 next_level_number = level_number + 1
+                
             else:
                 transitioning = True
                 next_level_number = None
+                pygame.mixer.music.stop()
+                sounds["ambience"].stop()
         
         pygame.display.flip()
         clock.tick(settings.fps)

@@ -1,4 +1,3 @@
-# game/enemy.py
 import pygame
 import os
 from game.projectile import Projectile

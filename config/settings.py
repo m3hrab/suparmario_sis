@@ -9,7 +9,7 @@ class Settings:
         self.fps = 60
 
         # Level settings
-        self.level_width = 2000
+        self.level_width = 4000
         self.level_height = 1200
         self.tile_size = 32
 

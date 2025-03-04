@@ -1,4 +1,3 @@
-# screens/game_over.py
 import pygame
 
 def game_over_screen(screen, settings, score, db, logged_in_user):
