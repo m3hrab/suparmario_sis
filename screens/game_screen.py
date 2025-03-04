@@ -138,20 +138,34 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                 elif event.key == pygame.K_r:
                     reset_level()
                 elif event.key == pygame.K_f and game_instance.shield_cooldown <= 0:
-                    game_instance.shield_timer = 180  # 3s active
+                    game_instance.shield_timer = 180
                     game_instance.shield_active = True
-                    game_instance.shield_cooldown = 480  # 8s total
+                    game_instance.shield_cooldown = 480
                     print("Shield activated")
         
-        if game_instance.player_lives > 0 and not transitioning and not endgame_message:
-            # Game running
+        # Check lose condition first
+        if game_instance.player_lives <= 0:
+            running = False
+            if logged_in_user and logged_in_user.strip():
+                user_id = db.get_user_id(logged_in_user)
+                if user_id:
+                    db.log_game_session(user_id, score, game_instance.lives_lost)
+                    db.update_score(logged_in_user, score)
+                    print(f"Score updated for {logged_in_user}: {score}")
+            result = game_over_screen(screen, settings, score, db, logged_in_user)
+            if result == "game":
+                return f"game:{1}"  # Restart at level 1
+            elif result == "menu" or result is None:
+                return "menu"
+        
+        # Game logic if player still has lives
+        if not transitioning and not endgame_message:
             player.update([t[0] for t in level.physics_tiles])
             if player.velocity.y < 0:
                 sounds["jump"].play()
             if player.dashing and player.dash_timer == player.dash_duration - 1:
                 sounds["dash"].play()
             
-            # Update damage and shield timers
             if game_instance.damage_cooldown > 0:
                 game_instance.damage_cooldown -= 1
             if game_instance.shield_timer > 0:
@@ -237,11 +251,11 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
         # Transition update
         if transitioning:
             transition_timer += 1
-            if transition_timer <= 60:  # Fade out (0-1s)
+            if transition_timer <= 60:
                 transition_alpha = (transition_timer / 60) * 255
-            else:  # Fade in (1-2s)
+            else:
                 transition_alpha = 255 - ((transition_timer - 60) / 60) * 255
-            if transition_timer >= 120:  # End transition after 2s
+            if transition_timer >= 120:
                 transitioning = False
                 transition_timer = 0
                 transition_alpha = 0
@@ -251,7 +265,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                     next_level_number = None
                 else:
                     endgame_message = True
-                    message_timer = 180  # 3s
+                    message_timer = 180
         
         # Endgame message update
         if endgame_message:
@@ -266,7 +280,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                         print(f"Score updated for {logged_in_user}: {score}")
                 result = game_over_screen(screen, settings, score, db, logged_in_user)
                 if result == "game":
-                    return f"game:{1}"  # Restart at level 1
+                    return f"game:{1}"
                 elif result == "menu" or result is None:
                     return "menu"
         
@@ -364,7 +378,7 @@ def game_screen(screen, settings, db, logged_in_user, level_number=1):
                 next_level_number = level_number + 1
             else:
                 transitioning = True
-                next_level_number = None  # Signals endgame
+                next_level_number = None
         
         pygame.display.flip()
         clock.tick(settings.fps)

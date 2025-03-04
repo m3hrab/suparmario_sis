@@ -1,3 +1,4 @@
+# screens/game_over.py
 import pygame
 
 def game_over_screen(screen, settings, score, db, logged_in_user):
@@ -19,47 +20,46 @@ def game_over_screen(screen, settings, score, db, logged_in_user):
         
         screen.fill((0, 0, 0))
         
-        # Draw game over text
+        # Draw game over text (top)
         title_text = font.render("Game Over!", True, (255, 0, 0))
-        title_rect = title_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 - 60))
+        title_rect = title_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 4 - 20))
         
         score_text = font.render(f"Final Score: {score}", True, (255, 255, 255))
-        score_rect = score_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 - 20))
+        score_rect = score_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 4 + 20))
         
+        # Draw instructions (bottom)
         restart_text = font.render("Press R to Restart", True, (255, 255, 255))
-        restart_rect = restart_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 + 20))
+        restart_rect = restart_text.get_rect(center=(	settings.screen_width // 2, settings.screen_height - 60))
         
         menu_text = font.render("Press M to Return to Menu", True, (255, 255, 255))
-        menu_rect = menu_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 + 60))
+        menu_rect = menu_text.get_rect(center=(settings.screen_width // 2, settings.screen_height - 20))
         
         screen.blit(title_text, title_rect)
         screen.blit(score_text, score_rect)
         screen.blit(restart_text, restart_rect)
         screen.blit(menu_text, menu_rect)
         
-        # Draw leaderboard
+        # Draw leaderboard (middle)
         if logged_in_user is None:
             login_text = font.render("Login to view Leaderboard", True, (255, 255, 255))
-            login_rect = login_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 + 100))
+            login_rect = login_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2))
             screen.blit(login_text, login_rect)
-            pygame.display.flip()
         
         else:
             if logged_in_user and logged_in_user.strip():
                 top_players = db.get_top_players()
-                # print(f"Top players: {top_players}")
                 if top_players:
                     leaderboard_title = font.render("Leaderboard - Top 5", True, (255, 255, 0))
-                    leaderboard_title_rect = leaderboard_title.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 + 100))
+                    leaderboard_title_rect = leaderboard_title.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 - 50))
                     screen.blit(leaderboard_title, leaderboard_title_rect)
                     
                     for i, (username, high_score) in enumerate(top_players):
                         player_text = small_font.render(f"{i + 1}. {username}: {high_score}", True, (255, 255, 255))
-                        player_rect = player_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 + 130 + i * 30))
+                        player_rect = player_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 - 10 + i * 40))
                         screen.blit(player_text, player_rect)
                 else:
                     no_data_text = font.render("No leaderboard data yet", True, (255, 255, 255))
-                    no_data_rect = no_data_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2 + 100))
+                    no_data_rect = no_data_text.get_rect(center=(settings.screen_width // 2, settings.screen_height // 2))
                     screen.blit(no_data_text, no_data_rect)
         
         pygame.display.flip()
