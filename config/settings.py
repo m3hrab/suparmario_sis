@@ -65,5 +65,6 @@ class Settings:
             "hurt": os.path.join("Assets", "Audio", "Sound", "hurt.wav"),
             "jump": os.path.join("Assets", "Audio", "Sound", "jump.wav"),
             "music": os.path.join("Assets", "Audio", "Sound", "music.wav"),
-            "shoot": os.path.join("Assets", "Audio", "Sound", "shoot.wav")
+            "shoot": os.path.join("Assets", "Audio", "Sound", "shoot.wav"),
+            "level_complete": os.path.join("Assets", "Audio", "Sound", "level-complete.mp3")
         }
